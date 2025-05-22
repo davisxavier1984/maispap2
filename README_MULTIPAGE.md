@@ -54,7 +54,7 @@ Estes foram substituídos pelo sistema de páginas nativo do Streamlit.
 Para executar a aplicação, use:
 
 ```bash
-streamlit run app.py
+streamlit run Home.py
 ```
 
 ## Problemas Conhecidos
