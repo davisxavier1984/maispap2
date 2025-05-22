@@ -8,7 +8,7 @@ Este documento descreve a implementação do sistema multi-página na Calculador
 
 A aplicação segue a estrutura padrão de multi-página do Streamlit:
 
-- `Home.py` - Página principal da aplicação, ponto de entrada
+- `app.py` - Página principal da aplicação, ponto de entrada
 - `/pages/` - Diretório contendo páginas adicionais
   - `01_Projeção_Financeira.py` - Página de projeção financeira detalhada
 - `/components/` - Diretório com componentes reutilizáveis
@@ -54,7 +54,7 @@ Estes foram substituídos pelo sistema de páginas nativo do Streamlit.
 Para executar a aplicação, use:
 
 ```bash
-streamlit run Home.py
+streamlit run app.py
 ```
 
 ## Problemas Conhecidos
