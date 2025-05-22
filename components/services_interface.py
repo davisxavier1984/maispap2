@@ -83,12 +83,21 @@ def render_services_interface():
         unsafe_allow_html=True
     )
 
-    selected_services = {}
-    edited_values = {}  # Dicionário para armazenar valores editados
-    # Dicionário para armazenar valores de implantação editados
-    edited_implantacao_values = {}
-    # Dicionário para armazenar quantidades de implantação editadas
-    edited_implantacao_quantity = {}
+    # Inicializar as variáveis de estado para serviços se ainda não existirem
+    if 'selected_services' not in st.session_state:
+        st.session_state['selected_services'] = {}
+    if 'edited_values' not in st.session_state:
+        st.session_state['edited_values'] = {}
+    if 'edited_implantacao_values' not in st.session_state:
+        st.session_state['edited_implantacao_values'] = {}
+    if 'edited_implantacao_quantity' not in st.session_state:
+        st.session_state['edited_implantacao_quantity'] = {}
+        
+    # Usar as variáveis de estado para os valores iniciais
+    selected_services = st.session_state['selected_services']
+    edited_values = st.session_state['edited_values']
+    edited_implantacao_values = st.session_state['edited_implantacao_values']
+    edited_implantacao_quantity = st.session_state['edited_implantacao_quantity']
 
     # Use st.expander for each category and create unique keys
     for category, services in updated_categories.items():
@@ -103,7 +112,9 @@ def render_services_interface():
                         col1, col2, col3 = st.columns(3)
 
                         with col1:
-                            quantity = st.number_input(f'{service} (Quantidade)', min_value=0, value=0, key=unique_key)
+                            # Usar valor da session_state se existir, senão usar 0
+                            default_value = selected_services.get(service, 0)
+                            quantity = st.number_input(f'{service} (Quantidade)', min_value=0, value=default_value, key=unique_key)
                             selected_services[service] = quantity
 
                         with col2:
@@ -113,8 +124,14 @@ def render_services_interface():
                             # Buscar valor do config.json
                             if service in data and data[service]['valor'] != 'Sem cálculo':
                                 initial_value = data[service]['valor']
+                            
+                            # Usar valor editado da session_state se existir
+                            if service in edited_values:
+                                value_to_display = format_currency(edited_values[service])
+                            else:
+                                value_to_display = initial_value
 
-                            value = st.text_input(f"Valor {service}", value=initial_value, key=unique_key_value)
+                            value = st.text_input(f"Valor {service}", value=value_to_display, key=unique_key_value)
                             # Armazenar valor editado, se houver
                             if value != initial_value:
                                 try:
@@ -146,7 +163,9 @@ def render_services_interface():
                     col1, col2, col3 = st.columns(3)
 
                     with col1:
-                        quantity = st.number_input(f'{service} (Quantidade)', min_value=0, value=0, key=unique_key)
+                        # Usar valor da session_state se existir, senão usar 0
+                        default_value = selected_services.get(service, 0)
+                        quantity = st.number_input(f'{service} (Quantidade)', min_value=0, value=default_value, key=unique_key)
                         selected_services[service] = quantity
 
                     with col2:
@@ -161,8 +180,14 @@ def render_services_interface():
                             # Buscar valor do config.json
                             if service in data and data[service]['valor'] != 'Sem cálculo':
                                 initial_value = data[service]['valor']
+                        
+                        # Usar valor editado da session_state se existir
+                        if service in edited_values:
+                            value_to_display = format_currency(edited_values[service])
+                        else:
+                            value_to_display = initial_value
 
-                        value = st.text_input(f"Valor {service}", value=initial_value, key=unique_key_value)
+                        value = st.text_input(f"Valor {service}", value=value_to_display, key=unique_key_value)
                         # Armazenar valor editado, se houver
                         if value != initial_value:
                             try:
@@ -222,7 +247,8 @@ def render_services_interface():
 
                         with col1_imp:
                             # Quantidade de implantação
-                            quantity_implantacao = st.number_input(f'{service} (Quantidade)', min_value=0, value=0,
+                            default_quantity = edited_implantacao_quantity.get(service, 0)
+                            quantity_implantacao = st.number_input(f'{service} (Quantidade)', min_value=0, value=default_quantity,
                                                                   key=key_q)
                             edited_implantacao_quantity[service] = quantity_implantacao
 
@@ -238,8 +264,14 @@ def render_services_interface():
                                 initial_implantacao_value = implantacao_values["eMulti Complementar"]
                             elif service == "eMULTI Estrat.":
                                 initial_implantacao_value = implantacao_values["eMulti Estratégica"]
+                                
+                            # Usar valor editado da session_state se existir
+                            if service in edited_implantacao_values:
+                                implantacao_value_to_display = format_currency(edited_implantacao_values[service])
+                            else:
+                                implantacao_value_to_display = initial_implantacao_value
 
-                            implantacao_value = st.text_input(f"Valor", value=initial_implantacao_value,
+                            implantacao_value = st.text_input(f"Valor", value=implantacao_value_to_display,
                                                               key=key_v)
                             # Armazenar valor de implantação editado, se houver
                             if implantacao_value != initial_implantacao_value:
@@ -266,5 +298,11 @@ def render_services_interface():
                                 total_implantacao = 0
                             st.text_input(f"Subtotal", value=format_currency(total_implantacao),
                                           key=key_s, disabled=True)
+
+    # Salvar os valores atualizados no session_state
+    st.session_state['selected_services'] = selected_services
+    st.session_state['edited_values'] = edited_values
+    st.session_state['edited_implantacao_values'] = edited_implantacao_values
+    st.session_state['edited_implantacao_quantity'] = edited_implantacao_quantity
 
     return selected_services, edited_values, edited_implantacao_values, edited_implantacao_quantity

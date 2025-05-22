@@ -15,18 +15,40 @@ def setup_consulta_parameters():
         col1, col2 = st.columns(2)
         with col1:
             estados = ufbr.list_uf
-            uf_selecionada = st.selectbox("Selecione um Estado", options=estados)
+            uf_selecionada = st.selectbox(
+                "Selecione um Estado", 
+                options=estados, 
+                index=estados.index(st.session_state.get('uf_selecionada', "Não informado")) if st.session_state.get('uf_selecionada', "Não informado") in estados else 0,
+                key="uf_selectbox"
+            )
+            st.session_state['uf_selecionada'] = uf_selecionada
         with col2:
-            competencia = st.text_input("Competência (AAAAMM)", st.session_state.get('competencia', "202501"))
+            competencia = st.text_input(
+                "Competência (AAAAMM)", 
+                value=st.session_state.get('competencia', "202501"),
+                key="competencia_input"
+            )
+            st.session_state['competencia'] = competencia
 
         if uf_selecionada:
             municipios = ufbr.list_cidades(uf_selecionada)
-            municipio_selecionado = st.selectbox("Selecione um Município", options=municipios)
+            municipio_selecionado = st.selectbox(
+                "Selecione um Município", 
+                options=municipios,
+                index=municipios.index(st.session_state.get('municipio_selecionado', "Não informado")) if st.session_state.get('municipio_selecionado', "Não informado") in municipios else 0,
+                key="municipio_selectbox"
+            )
+            st.session_state['municipio_selecionado'] = municipio_selecionado
+            
             codigo_ibge_input = st.text_input(
                 "Código IBGE do Município",
+                value=st.session_state.get('codigo_ibge', ""),
                 placeholder="Digite o código IBGE ou selecione um município",
-                help="Digite o código IBGE do município com 7 dígitos"
+                help="Digite o código IBGE do município com 7 dígitos",
+                key="codigo_ibge_input"
             )
+            
+            st.session_state['codigo_ibge'] = codigo_ibge_input
 
             if codigo_ibge_input:
                 if len(codigo_ibge_input.strip()) != 7:
@@ -79,14 +101,26 @@ def setup_classification_dropdowns():
     col_classificacao, col_vinculo = st.columns([1, 1])
 
     with col_classificacao:
-        classificacao = st.selectbox("Considerar Qualidade", 
-                              options=['Regular', 'Suficiente', 'Bom', 'Ótimo'], 
-                              index=2)
+        opcoes = ['Regular', 'Suficiente', 'Bom', 'Ótimo']
+        index_padrao = opcoes.index(st.session_state.get('classificacao', 'Bom')) if st.session_state.get('classificacao', 'Bom') in opcoes else 2
+        classificacao = st.selectbox(
+            "Considerar Qualidade", 
+            options=opcoes, 
+            index=index_padrao,
+            key="classificacao_dropdown"
+        )
+        st.session_state['classificacao'] = classificacao
 
     with col_vinculo:
-        vinculo = st.selectbox("Vínculo e Acompanhamento Territorial", 
-                        options=['Regular', 'Suficiente', 'Bom', 'Ótimo'], 
-                        index=2)
+        opcoes = ['Regular', 'Suficiente', 'Bom', 'Ótimo']
+        index_padrao = opcoes.index(st.session_state.get('vinculo', 'Bom')) if st.session_state.get('vinculo', 'Bom') in opcoes else 2
+        vinculo = st.selectbox(
+            "Vínculo e Acompanhamento Territorial", 
+            options=opcoes, 
+            index=index_padrao,
+            key="vinculo_dropdown"
+        )
+        st.session_state['vinculo'] = vinculo
     
     return classificacao, vinculo
 
@@ -177,8 +211,18 @@ def setup_interface():
         
         # Cálculos e exibição dos resultados
         if calcular_button:
-            if all(q == 0 for q in selected_services.values()):
+            # Usar os valores armazenados na session_state
+            services = st.session_state.get('selected_services', {})
+            
+            if all(q == 0 for q in services.values()):
                 st.error("Por favor, selecione pelo menos um serviço para calcular.")
             else:
-                calculate_results(selected_services, edited_values, edited_implantacao_values, 
-                                 edited_implantacao_quantity, classificacao, vinculo)
+                # Utilizar os valores da session_state
+                calculate_results(
+                    st.session_state.get('selected_services', {}), 
+                    st.session_state.get('edited_values', {}), 
+                    st.session_state.get('edited_implantacao_values', {}), 
+                    st.session_state.get('edited_implantacao_quantity', {}), 
+                    st.session_state.get('classificacao', 'Bom'), 
+                    st.session_state.get('vinculo', 'Bom')
+                )
