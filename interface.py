@@ -175,17 +175,9 @@ def setup_extra_parameters():
 
 def setup_interface():
     """Configura a interface principal da aplicação."""
-    # Inicializa valores na session_state
-    if 'valor_esf_eap' not in st.session_state:
-        st.session_state['valor_esf_eap'] = 0.0
-    if 'valor_saude_bucal' not in st.session_state:
-        st.session_state['valor_saude_bucal'] = 0.0
-    if 'valor_acs' not in st.session_state:
-        st.session_state['valor_acs'] = 0.0
-    if 'valor_estrategicas' not in st.session_state:
-        st.session_state['valor_estrategicas'] = 0.0
-    if 'calculo_realizado' not in st.session_state:
-        st.session_state['calculo_realizado'] = 0.0
+    # Garantir que o StateManager inicializou o estado
+    from core.state_manager import StateManager
+    StateManager.get_state()  # Isso garante a inicialização
     
     # Configuração dos parâmetros de consulta
     uf_selecionada, municipio_selecionado, competencia = setup_consulta_parameters()

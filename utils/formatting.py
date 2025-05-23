@@ -1,11 +1,62 @@
 """
-Funções de formatação para valores monetários na Calculadora PAP.
+Utilitários de formatação para a Calculadora PAP.
+
+Este módulo contém funções auxiliares para formatação de dados.
+Versão consolidada unificando todas as funções de formatação.
 """
 import streamlit as st
+from typing import Union
 
-def currency_to_float(value):
+def format_currency(value: Union[str, int, float]) -> str:
+    """
+    Formata um número como moeda brasileira.
+    
+    Args:
+        value: Valor a ser formatado (float, int ou str)
+        
+    Returns:
+        str: Valor formatado como moeda brasileira
+    """
+    if value == 'Sem cálculo':
+        return value
+    
+    # Converte para float se necessário
+    if isinstance(value, str):
+        try:
+            # Remove símbolos de moeda e converte separadores
+            value = value.replace('R$', '').strip().replace('.', '').replace(',', '.')
+            value = float(value)
+        except ValueError:
+            st.warning(f"Valor inválido para formatação: {value}")
+            return "Valor inválido"
+    
+    try:
+        # Formata como moeda brasileira
+        return f"R$ {float(value):,.2f}".replace(",", "@").replace(".", ",").replace("@", ".")
+    except (ValueError, TypeError):
+        return "R$ 0,00"
+
+def parse_currency(value_str: Union[str, int, float]) -> float:
+    """
+    Converte string de moeda para float.
+    
+    Args:
+        value_str: String representando valor monetário
+        
+    Returns:
+        float: Valor numérico
+    """
+    try:
+        if isinstance(value_str, str):
+            return float(value_str.replace('R$ ', '').replace('R$', '').replace('.', '').replace(',', '.').strip())
+        return float(value_str)
+    except (ValueError, TypeError):
+        return 0.0
+
+def currency_to_float(value: Union[str, int, float]) -> float:
     """
     Converte uma string de moeda brasileira (R$) para um número float.
+    Função principal para conversão de moeda.
     
     Args:
         value: Valor a converter, pode ser string ou número
@@ -18,40 +69,52 @@ def currency_to_float(value):
         
     if isinstance(value, str):
         try:
-            # Remove "R$" e espaços, e substitui vírgulas por pontos
+            # Remove "R$" e espaços, e substitui separadores
             cleaned_value = value.replace('R$', '').strip().replace('.', '').replace(',', '.')
             return float(cleaned_value)
         except ValueError:
             st.warning(f"Valor inválido para conversão: {value}")
             return 0.0
     
-    # Se já for um número, retorna diretamente
-    return float(value)
+    try:
+        # Se já for um número, retorna diretamente
+        return float(value)
+    except (ValueError, TypeError):
+        return 0.0
 
-def format_currency(value):
+def format_percentage(value: Union[str, int, float], decimals: int = 2) -> str:
     """
-    Formata um número como moeda brasileira (R$).
+    Formata um número como porcentagem.
     
     Args:
-        value: Número ou string a ser formatada
+        value: Valor a ser formatado
+        decimals: Número de casas decimais
         
     Returns:
-        str: Valor formatado como moeda brasileira
+        str: Valor formatado como porcentagem
     """
-    if value == 'Sem cálculo':
-        return value
+    try:
+        return f"{float(value):.{decimals}f}%"
+    except (ValueError, TypeError):
+        return f"0.{'0' * decimals}%"
 
-    # Converte a string para float, se necessário
-    if isinstance(value, str):
-        try:
-            value = currency_to_float(value)
-        except ValueError:
-            return "Valor inválido"
+def format_number(value: Union[str, int, float], decimals: int = 2) -> str:
+    """
+    Formata um número com separadores de milhares.
+    
+    Args:
+        value: Valor a ser formatado
+        decimals: Número de casas decimais
+        
+    Returns:
+        str: Valor formatado
+    """
+    try:
+        return f"{float(value):,.{decimals}f}".replace(",", "@").replace(".", ",").replace("@", ".")
+    except (ValueError, TypeError):
+        return f"0,{'0' * decimals}"
 
-    # Formata o valor como moeda, usando f-string
-    return f"R$ {value:,.2f}".replace(",", "@").replace(".", ",").replace("@", ".")
-
-def calcular_potencial_aumento(total_geral, valor_cenario_regular, valor_parametros_adicionais):
+def calcular_potencial_aumento(total_geral: float, valor_cenario_regular: float, valor_parametros_adicionais: float) -> float:
     """
     Calcula o potencial de aumento com base no valor total e no cenário regular.
     
@@ -63,8 +126,34 @@ def calcular_potencial_aumento(total_geral, valor_cenario_regular, valor_paramet
     Returns:
         float: Valor do potencial de aumento
     """
-    # Calcula a diferença entre o total + parâmetros adicionais e o cenário regular
-    aumento_mensal = valor_parametros_adicionais - valor_cenario_regular if valor_cenario_regular > 0 else 0
+    try:
+        # Calcula a diferença entre o total + parâmetros adicionais e o cenário regular
+        aumento_mensal = valor_parametros_adicionais - valor_cenario_regular if valor_cenario_regular > 0 else 0
+        return aumento_mensal
+    except (ValueError, TypeError):
+        return 0.0
+
+def validate_numeric_input(value: Union[str, int, float], field_name: str = "Valor") -> float:
+    """
+    Valida e converte entrada numérica com tratamento de erro robusto.
     
-    # Retorna o potencial de aumento
-    return aumento_mensal
+    Args:
+        value: Valor a ser validado
+        field_name: Nome do campo para mensagens de erro
+        
+    Returns:
+        float: Valor validado ou 0.0 se inválido
+    """
+    try:
+        if value is None or value == "":
+            return 0.0
+        
+        if isinstance(value, str):
+            # Remove espaços e caracteres especiais comuns
+            cleaned = value.strip().replace('R$', '').replace('.', '').replace(',', '.')
+            return float(cleaned)
+        
+        return float(value)
+    except (ValueError, TypeError):
+        st.warning(f"⚠️ {field_name} inválido: {value}. Usando 0.0 como valor padrão.")
+        return 0.0

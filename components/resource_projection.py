@@ -67,7 +67,7 @@ def display_resource_projection(vinculo_values, quality_values, selected_service
         st.session_state['valor_cenario_regular'] = valor_cenario_regular
 
         # Cálculos para o texto
-        total_parametros = st.session_state['valor_esf_eap'] + st.session_state['valor_saude_bucal'] + st.session_state['valor_acs'] + st.session_state['valor_estrategicas']
+        total_parametros = st.session_state.get('valor_esf_eap', 0.0) + st.session_state.get('valor_saude_bucal', 0.0) + st.session_state.get('valor_acs', 0.0) + st.session_state.get('valor_estrategicas', 0.0)
         aumento_mensal = total_parametros - valor_cenario_regular  # Diferença entre o total adicional e o cenário regular
         aumento_anual = aumento_mensal * 12
         
@@ -102,10 +102,10 @@ def display_resource_projection(vinculo_values, quality_values, selected_service
                 "Total Adicional"
             ],
             'Valor': [
-                st.session_state['valor_esf_eap'],
-                st.session_state['valor_saude_bucal'],
-                st.session_state['valor_acs'],
-                st.session_state['valor_estrategicas'],
+                st.session_state.get('valor_esf_eap', 0.0),
+                st.session_state.get('valor_saude_bucal', 0.0),
+                st.session_state.get('valor_acs', 0.0),
+                st.session_state.get('valor_estrategicas', 0.0),
                 total_parametros
             ]
         })

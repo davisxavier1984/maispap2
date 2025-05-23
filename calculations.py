@@ -453,10 +453,10 @@ def calculate_results(selected_services, edited_values, edited_implantacao_value
             format_currency(total_saude_bucal_value),
             format_currency(total_per_capita),
             format_currency(total_implantacao_manutencao_value),
-            format_currency(st.session_state['valor_esf_eap'] + st.session_state['valor_saude_bucal'] + 
-                           st.session_state['valor_acs'] + st.session_state['valor_estrategicas']),
-            format_currency(total_geral + st.session_state['valor_esf_eap'] + st.session_state['valor_saude_bucal'] + 
-                          st.session_state['valor_acs'] + st.session_state['valor_estrategicas'])
+            format_currency(st.session_state.get('valor_esf_eap', 0.0) + st.session_state.get('valor_saude_bucal', 0.0) +
+                           st.session_state.get('valor_acs', 0.0) + st.session_state.get('valor_estrategicas', 0.0)),
+            format_currency(total_geral + st.session_state.get('valor_esf_eap', 0.0) + st.session_state.get('valor_saude_bucal', 0.0) + 
+                          st.session_state.get('valor_acs', 0.0) + st.session_state.get('valor_estrategicas', 0.0))
         ]
     })
     

@@ -4,6 +4,9 @@ Página de projeção financeira detalhada.
 import streamlit as st
 import pandas as pd
 import numpy as np
+import plotly.express as px
+import plotly.graph_objects as go
+from plotly.subplots import make_subplots
 from utils import format_currency
 
 # Configuração da página
@@ -203,19 +206,157 @@ if edited_df is not None:
             # Manter o valor anterior se houver erro
             pass
 
-# Visualização gráfica dos dados
-st.subheader("Visualização Gráfica")
+# Visualização gráfica dos dados com Plotly
+st.subheader("📊 Visualização Gráfica Interativa")
 
-# Gráfico de barras para valores projetados
-st.bar_chart(
-    pd.DataFrame({
-        'Valor': [float(st.session_state.get(f'valor_{p}m', 0)) for p in periods],
-        'Período': [f"{p} meses" for p in periods]
-    }),
-    x='Período',
+# Preparar dados para os gráficos
+chart_data = pd.DataFrame({
+    'Período': [f"{p} meses" for p in periods],
+    'Período_num': periods,
+    'Valor': [float(st.session_state.get(f'valor_{p}m', 0)) for p in periods],
+    'Percentual': [int(st.session_state.get(f'percentual_{p}m', 0)) for p in periods]
+})
+
+# Criar abas para diferentes visualizações
+tab1, tab2, tab3 = st.tabs(["📊 Gráfico de Barras", "📈 Gráfico de Linhas", "🥧 Gráfico de Pizza"])
+
+with tab1:
+    # Gráfico de barras interativo
+    fig_bar = px.bar(
+        chart_data, 
+        x='Período', 
+        y='Valor',
+        title=f'Projeção Financeira por Período - {municipio_selecionado}',
+        labels={'Valor': 'Valor Projetado (R$)', 'Período': 'Período'},
+        color='Valor',
+        color_continuous_scale='viridis',
+        text='Valor'
+    )
+    
+    # Personalizar o gráfico
+    fig_bar.update_traces(
+        texttemplate='R$ %{text:,.0f}',
+        textposition='outside',
+        hovertemplate='<b>%{x}</b><br>Valor: R$ %{y:,.2f}<br>Percentual: %{customdata}%<extra></extra>',
+        customdata=chart_data['Percentual']
+    )
+    
+    fig_bar.update_layout(
+        xaxis_title="Período",
+        yaxis_title="Valor Projetado (R$)",
+        font=dict(size=12),
+        showlegend=False,
+        height=500,
+        yaxis=dict(tickformat=',.0f')
+    )
+    
+    st.plotly_chart(fig_bar, use_container_width=True)
+
+with tab2:
+    # Gráfico de linhas com área
+    fig_line = go.Figure()
+    
+    # Adicionar linha
+    fig_line.add_trace(go.Scatter(
+        x=chart_data['Período_num'],
+        y=chart_data['Valor'],
+        mode='lines+markers',
+        name='Valor Projetado',
+        line=dict(color='#1f77b4', width=3),
+        marker=dict(size=8, color='#1f77b4'),
+        fill='tonexty',
+        fillcolor='rgba(31, 119, 180, 0.2)',
+        hovertemplate='<b>%{x} meses</b><br>Valor: R$ %{y:,.2f}<extra></extra>'
+    ))
+    
+    # Adicionar linha de tendência
+    z = np.polyfit(chart_data['Período_num'], chart_data['Valor'], 1)
+    p = np.poly1d(z)
+    fig_line.add_trace(go.Scatter(
+        x=chart_data['Período_num'],
+        y=p(chart_data['Período_num']),
+        mode='lines',
+        name='Tendência',
+        line=dict(color='red', width=2, dash='dash'),
+        hovertemplate='Tendência: R$ %{y:,.2f}<extra></extra>'
+    ))
+    
+    fig_line.update_layout(
+        title=f'Evolução da Projeção Financeira - {municipio_selecionado}',
+        xaxis_title="Período (meses)",
+        yaxis_title="Valor Projetado (R$)",
+        font=dict(size=12),
+        height=500,
+        hovermode='x unified',
+        yaxis=dict(tickformat=',.0f'),
+        xaxis=dict(tickmode='array', tickvals=periods, ticktext=[f"{p}m" for p in periods])
+    )
+    
+    st.plotly_chart(fig_line, use_container_width=True)
+
+with tab3:
+    # Gráfico de pizza para distribuição dos valores
+    fig_pie = px.pie(
+        chart_data, 
+        values='Valor', 
+        names='Período',
+        title=f'Distribuição da Projeção por Período - {municipio_selecionado}',
+        color_discrete_sequence=px.colors.qualitative.Set3
+    )
+    
+    fig_pie.update_traces(
+        textposition='inside',
+        textinfo='percent+label',
+        hovertemplate='<b>%{label}</b><br>Valor: R$ %{value:,.2f}<br>Percentual: %{percent}<extra></extra>'
+    )
+    
+    fig_pie.update_layout(
+        font=dict(size=12),
+        height=500
+    )
+    
+    st.plotly_chart(fig_pie, use_container_width=True)
+
+# Gráfico adicional: Comparação com valor regular
+st.subheader("📊 Comparação com Cenário Regular")
+
+# Dados para comparação
+comparison_data = pd.DataFrame({
+    'Cenário': ['Valor Regular', 'Projeção 12 meses', 'Projeção 24 meses', 'Projeção 30 meses'],
+    'Valor': [
+        valor_cenario_regular,
+        float(st.session_state.get('valor_12m', 0)),
+        float(st.session_state.get('valor_24m', 0)),
+        float(st.session_state.get('valor_30m', 0))
+    ],
+    'Tipo': ['Regular', 'Projeção', 'Projeção', 'Projeção']
+})
+
+fig_comparison = px.bar(
+    comparison_data,
+    x='Cenário',
     y='Valor',
-    use_container_width=True
+    color='Tipo',
+    title='Comparação: Cenário Regular vs Projeções',
+    labels={'Valor': 'Valor (R$)', 'Cenário': 'Cenário'},
+    color_discrete_map={'Regular': '#ff7f0e', 'Projeção': '#1f77b4'},
+    text='Valor'
 )
+
+fig_comparison.update_traces(
+    texttemplate='R$ %{text:,.0f}',
+    textposition='outside'
+)
+
+fig_comparison.update_layout(
+    xaxis_title="Cenários",
+    yaxis_title="Valor (R$)",
+    font=dict(size=12),
+    height=400,
+    yaxis=dict(tickformat=',.0f')
+)
+
+st.plotly_chart(fig_comparison, use_container_width=True)
 
 # Resumo dos valores em tabela estilizada
 st.subheader("Resumo da Projeção Financeira")

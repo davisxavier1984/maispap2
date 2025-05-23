@@ -2,6 +2,7 @@
 Funções úteis para a interface da Calculadora PAP.
 """
 import streamlit as st
+import pandas as pd
 
 def style_metric_cards(
     background_color: str = "#f5f5f5",
@@ -138,3 +139,21 @@ def metric_card(title, value, delta=None, icon=None, color="blue", help=None):
     """
     
     st.markdown(metric_html, unsafe_allow_html=True)
+
+def exibir_tabelas(titulo, dados, colunas):
+    """
+    Exibe tabelas de dados formatadas no Streamlit.
+    Placeholder - a implementação original precisa ser encontrada ou recriada.
+    """
+    st.subheader(titulo)
+    if dados:
+        df = pd.DataFrame(dados)
+        # Assegura que apenas colunas existentes são selecionadas
+        colunas_existentes = [col for col in colunas if col in df.columns]
+        if not colunas_existentes:
+            st.warning(f"Nenhuma das colunas especificadas {colunas} foi encontrada nos dados para '{titulo}'. Exibindo todas as colunas disponíveis.")
+            st.dataframe(df)
+        else:
+            st.dataframe(df[colunas_existentes])
+    else:
+        st.info(f"Não há dados para exibir em '{titulo}'.")
