@@ -12,6 +12,39 @@ from components.scenarios_analysis import display_scenarios_analysis
 from components.scenarios_report import gerar_relatorio_cenarios, display_comparison_chart, display_detailed_report
 from components.resource_projection import display_resource_projection
 
+def sanitize_dataframe(df):
+    """Sanitiza DataFrame para compatibilidade com Arrow/Streamlit."""
+    df = df.copy()
+    
+    # Corrigir colunas numéricas
+    numeric_columns = ['Quantidade']
+    for col in numeric_columns:
+        if col in df.columns:
+            # Substituir strings vazias por 0
+            df[col] = df[col].replace('', 0)
+            # Garantir que valores são numéricos
+            df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0)
+            # Converter para int se todos os valores são inteiros
+            if df[col].dtype == 'float64' and df[col].apply(lambda x: x.is_integer()).all():
+                df[col] = df[col].astype(int)
+    
+    # Corrigir colunas de valor (remover formatação monetária para ordenação)
+    value_columns = ['Valor', 'Valor Unitário', 'Valor Total', 'Valor Integral']
+    for col in value_columns:
+        if col in df.columns:
+            # Substituir strings vazias por valor formatado zerado
+            df[col] = df[col].replace('', 'R$ 0,00')
+            # Garantir que todos os valores são strings
+            df[col] = df[col].astype(str)
+    
+    # Garantir que todas as outras colunas são strings
+    string_columns = [col for col in df.columns if col not in numeric_columns and col not in value_columns]
+    for col in string_columns:
+        if col in df.columns:
+            df[col] = df[col].replace('', '-').astype(str)
+    
+    return df
+
 # Constantes para valores de vínculo e acompanhamento territorial
 VINCULO_VALUES = {
     'eSF': {'Ótimo': 8000, 'Bom': 6000, 'Suficiente': 4000, 'Regular': 2000},
@@ -340,32 +373,32 @@ def calculate_results(selected_services, edited_values, edited_implantacao_value
     fixed_df, total_fixed_value = calculate_fixed_component(
         selected_services, edited_values, edited_implantacao_quantity, edited_implantacao_values, config_data
     )
-    st.table(fixed_df)
+    st.table(sanitize_dataframe(fixed_df))
     
     # COMPONENTE 02 - VÍNCULO E ACOMPANHAMENTO TERRITORIAL
     st.subheader("Componente II - Vínculo e Acompanhamento Territorial")
     vinculo_df, total_vinculo_value = calculate_vinculo_component(selected_services, edited_values, vinculo)
-    st.table(vinculo_df)
+    st.table(sanitize_dataframe(vinculo_df))
     
     # COMPONENTE 03 - QUALIDADE
     st.subheader("Componente III - Qualidade")
     quality_df, total_quality_value = calculate_quality_component(selected_services, edited_values, classificacao, config_data)
-    st.table(quality_df)
+    st.table(sanitize_dataframe(quality_df))
     
     # IV - COMPONENTE PARA IMPLANTAÇÃO E MANUTENÇÃO DE PROGRAMAS
     st.subheader("IV - Componente para Implantação e Manutenção de Programas, Serviços, Profissionais e Outras Composições de Equipes")
     implantacao_manutencao_df, total_implantacao_manutencao_value = calculate_implantacao_manutencao(selected_services, edited_values, config_data)
-    st.table(implantacao_manutencao_df)
+    st.table(sanitize_dataframe(implantacao_manutencao_df))
     
     # V - COMPONENTE PARA ATENÇÃO À SAÚDE BUCAL
     st.subheader("V - Componente para Atenção à Saúde Bucal")
     saude_bucal_df, total_saude_bucal_value = calculate_saude_bucal_component(selected_services, edited_values, config_data)
-    st.table(saude_bucal_df)
+    st.table(sanitize_dataframe(saude_bucal_df))
     
     # COMPONENTE PER CAPITA
     st.subheader("VI - Componente Per Capita (Cálculo Simplificado)")
     per_capita_df, total_per_capita = calculate_per_capita()
-    st.table(per_capita_df)
+    st.table(sanitize_dataframe(per_capita_df))
     
     # CÁLCULO DO TOTAL GERAL
     total_geral = (total_fixed_value + total_vinculo_value + total_quality_value + 
@@ -486,3 +519,13 @@ def calculate_results(selected_services, edited_values, edited_implantacao_value
     display_resource_projection(VINCULO_VALUES, QUALITY_VALUES, selected_services, 
                                total_fixed_value, total_implantacao_manutencao_value,
                                total_saude_bucal_value, total_per_capita)
+    
+    # Armazenar o total PAP calculado no session_state para uso em relatórios
+    st.session_state['total_pap_calculado'] = total_geral + st.session_state.get('valor_esf_eap', 0.0) + \
+                                             st.session_state.get('valor_saude_bucal', 0.0) + \
+                                             st.session_state.get('valor_acs', 0.0) + \
+                                             st.session_state.get('valor_estrategicas', 0.0)
+    
+    # Adicionar informação sobre relatórios PDF
+    st.markdown("---")
+    st.info("📄 **Para gerar relatórios PDF completos**, acesse a página **Relatórios PDF** na barra lateral.")

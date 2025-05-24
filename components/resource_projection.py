@@ -131,8 +131,8 @@ def display_resource_projection(vinculo_values, quality_values, selected_service
             <div style="text-align: justify; color: #2c3e50; font-size: 1.1rem">
                 <p>
                     Considerando os valores informados, e subtraindo o valor do cenário <b>REGULAR ({format_currency(valor_cenario_regular)})</b>,
-                    espera-se que o <b style="color: #008080">AUMENTO SEJA DE R$ {format_currency(aumento_mensal).replace('R$', '', 1).strip()} MIL MENSAIS</b>,
-                    resultando em <b style="color: #008080">APROXIMADAMENTE R$ {format_currency(aumento_anual).replace('R$', '', 1).strip()} MIL ANUAL</b>,
+                    espera-se que o <b style="color: #008080">AUMENTO SEJA DE R$ {format_currency(aumento_mensal).replace('R$', '', 1).strip()} MENSAIS</b>,
+                    resultando em <b style="color: #008080">APROXIMADAMENTE R$ {format_currency(aumento_anual).replace('R$', '', 1).strip()} ANUAIS</b>,
                     comparado com o cenário de pior desempenho. Estes valores são projetados para o município de
                     <b style="color: #008080">{municipio_selecionado} - {uf_selecionada}</b>, levando em conta os parâmetros adicionais fornecidos.
                 </p>

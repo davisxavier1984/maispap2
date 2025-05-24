@@ -99,6 +99,61 @@ def main():
             help="Nível de vínculo para cálculo dos incentivos"
         )
     
+    # Parâmetros Adicionais
+    st.subheader("📋 Parâmetros Adicionais")
+    with st.expander("Valores Adicionais para o Cálculo", expanded=False):
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            valor_esf_eap = st.number_input(
+                "Incentivo Financeiro da APS eSF ou eAP", 
+                value=st.session_state.get('valor_esf_eap', 0.0), 
+                format="%.2f",
+                help="Valor adicional para incentivo financeiro eSF ou eAP",
+                key="input_esf_eap"
+            )
+            st.session_state['valor_esf_eap'] = valor_esf_eap
+            
+            valor_saude_bucal = st.number_input(
+                "Incentivo Financeiro para Atenção à Saúde Bucal", 
+                value=st.session_state.get('valor_saude_bucal', 0.0), 
+                format="%.2f",
+                help="Valor adicional para atenção à saúde bucal",
+                key="input_saude_bucal"
+            )
+            st.session_state['valor_saude_bucal'] = valor_saude_bucal
+        
+        with col2:
+            valor_acs = st.number_input(
+                "Total ACS", 
+                value=st.session_state.get('valor_acs', 0.0), 
+                format="%.2f",
+                help="Valor total para Agentes Comunitários de Saúde",
+                key="input_acs"
+            )
+            st.session_state['valor_acs'] = valor_acs
+            
+            valor_estrategicas = st.number_input(
+                "Ações Estratégicas", 
+                value=st.session_state.get('valor_estrategicas', 0.0), 
+                format="%.2f",
+                help="Valor para ações estratégicas",
+                key="input_estrategicas"
+            )
+            st.session_state['valor_estrategicas'] = valor_estrategicas
+        
+        # Calcular e exibir o total adicional
+        total_adicional = valor_esf_eap + valor_saude_bucal + valor_acs + valor_estrategicas
+        
+        if total_adicional > 0:
+            st.markdown("---")
+            st.markdown(
+                f"<div style='text-align: center; padding: 10px; background-color: #f0f2f6; border-radius: 5px;'>"
+                f"<h4 style='color: #1f77b4; margin: 0;'>💰 Total Adicional: R$ {total_adicional:,.2f}</h4>"
+                f"</div>", 
+                unsafe_allow_html=True
+            )
+    
     # Botão de cálculo
     st.markdown("---")
     calcular_col1, calcular_col2, calcular_col3 = st.columns([1, 2, 1])
