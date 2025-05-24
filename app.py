@@ -41,6 +41,9 @@ state = StateManager.get_state()
 # Garantir sincronização com session_state legado
 StateManager._sync_to_legacy_session_state()
 
+# Forçar sincronização da população para garantir que está disponível para cálculos
+StateManager.force_population_sync()
+
 # Modo debug (ativar com query parameter ?debug=true)
 query_params = st.query_params
 if query_params.get('debug', 'false').lower() == 'true':

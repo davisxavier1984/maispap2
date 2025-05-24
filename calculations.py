@@ -340,7 +340,36 @@ def calculate_saude_bucal_component(selected_services, edited_values, config_dat
 
 def calculate_per_capita():
     """Calcula o componente per capita."""
+    # Tentar obter população do session_state primeiro
     populacao = st.session_state.get('populacao', 0)
+    
+    # Se a população está zerada no session_state, tentar do core
+    if populacao == 0:
+        try:
+            from core.state_manager import StateManager
+            # Forçar sincronização antes de obter dados
+            StateManager.force_population_sync()
+            
+            municipio_data = StateManager.get_municipio_data()
+            if municipio_data and municipio_data.populacao > 0:
+                populacao = municipio_data.populacao
+                # Atualizar session_state para compatibilidade
+                st.session_state['populacao'] = populacao
+        except Exception as e:
+            # Em caso de erro, tentar extrair dos dados
+            try:
+                dados = st.session_state.get('dados', {})
+                if dados and 'pagamentos' in dados and dados['pagamentos']:
+                    populacao = dados['pagamentos'][0].get('qtPopulacao', 0)
+                    if populacao > 0:
+                        st.session_state['populacao'] = populacao
+            except:
+                pass  # Falha silenciosa, manterá população = 0
+    
+    # Debug: log da população encontrada
+    if st.session_state.get('debug_mode', False):
+        st.write(f"🔍 Debug - População encontrada: {populacao}")
+    
     valor_per_capita = 5.95
     total_per_capita = (valor_per_capita * populacao) / 12
     

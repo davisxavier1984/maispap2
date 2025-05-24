@@ -68,6 +68,23 @@ def setup_consulta_parameters():
 
             dados = consultar_api(codigo_ibge, competencia)
             st.session_state['dados'] = dados
+            
+            # Extrair e salvar população dos dados
+            if dados:
+                try:
+                    if 'pagamentos' in dados and dados['pagamentos']:
+                        populacao = dados['pagamentos'][0].get('qtPopulacao', 0)
+                        if populacao > 0:
+                            st.session_state['populacao'] = populacao
+                            
+                            # Também sincronizar com o StateManager
+                            try:
+                                from core.state_manager import StateManager
+                                StateManager.set_dados_municipio(dados, municipio_selecionado, uf_selecionada, competencia)
+                            except ImportError:
+                                pass  # Se não conseguir importar, apenas continue
+                except (KeyError, IndexError, TypeError):
+                    pass
 
         return uf_selecionada, municipio_selecionado, competencia
 

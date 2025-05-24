@@ -99,6 +99,22 @@ def main():
             st.session_state['uf_selecionada'] = uf_selecionada
             st.session_state['competencia'] = competencia
             
+            # Extrair e salvar população dos dados
+            try:
+                if 'pagamentos' in dados and dados['pagamentos']:
+                    populacao = dados['pagamentos'][0].get('qtPopulacao', 0)
+                    if populacao > 0:
+                        st.session_state['populacao'] = populacao
+                        
+                        # Também sincronizar com o StateManager
+                        try:
+                            from core.state_manager import StateManager
+                            StateManager.set_dados_municipio(dados, municipio_selecionado, uf_selecionada, competencia)
+                        except ImportError:
+                            pass  # Se não conseguir importar, apenas continue
+            except (KeyError, IndexError, TypeError):
+                pass
+            
             st.success(f"✅ Dados carregados com sucesso para {municipio_selecionado} - {uf_selecionada}!")
 
             # Exibir dados

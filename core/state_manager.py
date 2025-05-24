@@ -280,6 +280,28 @@ class StateManager:
         return sum(state.selected_services.values())
     
     @classmethod
+    def get_municipio_data(cls) -> Optional['MunicipioData']:
+        """
+        Retorna os dados do município como MunicipioData.
+        
+        Returns:
+            MunicipioData: Dados do município ou None se não definido
+        """
+        from .models import MunicipioData
+        state = cls.get_state()
+        
+        if not (state.municipio_selecionado and state.uf_selecionada):
+            return None
+        
+        return MunicipioData(
+            uf=state.uf_selecionada,
+            municipio=state.municipio_selecionado,
+            competencia=state.competencia or "",
+            ied=state.ied,
+            populacao=state.populacao
+        )
+    
+    @classmethod
     def set_dados_municipio(cls, dados: Dict[str, Any], municipio: str, uf: str, competencia: str) -> None:
         """
         Define os dados do município de forma organizada.
@@ -290,7 +312,7 @@ class StateManager:
             uf: Estado
             competencia: Competência
         """
-        # Extrair IED dos dados se disponível
+        # Extrair IED e população dos dados se disponível
         ied = None
         populacao = 0
         
@@ -299,6 +321,7 @@ class StateManager:
             if pagamentos:
                 primeiro_pagamento = pagamentos[0]
                 ied = primeiro_pagamento.get('dsFaixaIndiceEquidadeEsfEap')
+                populacao = primeiro_pagamento.get('qtPopulacao', 0)
         
         cls.update_state(
             dados=dados,
@@ -328,7 +351,33 @@ class StateManager:
             'ultima_atualizacao': state.ultima_atualizacao,
             'has_dados': cls.has_dados()
         }
-
+    
+    @classmethod
+    def force_population_sync(cls) -> None:
+        """
+        Força a sincronização da população entre o core e session_state.
+        Útil para garantir que a população está disponível para cálculos legados.
+        """
+        state = cls.get_state()
+        
+        # Se temos população no core mas não no session_state, sincronizar
+        if state.populacao > 0 and st.session_state.get('populacao', 0) == 0:
+            st.session_state['populacao'] = state.populacao
+        
+        # Se temos população no session_state mas não no core, sincronizar
+        elif st.session_state.get('populacao', 0) > 0 and state.populacao == 0:
+            cls.update_state(populacao=st.session_state['populacao'])
+        
+        # Se temos dados mas população não foi extraída, tentar extrair
+        elif state.populacao == 0 and state.dados:
+            try:
+                if 'pagamentos' in state.dados and state.dados['pagamentos']:
+                    populacao = state.dados['pagamentos'][0].get('qtPopulacao', 0)
+                    if populacao > 0:
+                        cls.update_state(populacao=populacao)
+            except (KeyError, IndexError, TypeError):
+                pass
+    
 # Funções de conveniência para compatibilidade com código existente
 def get_state() -> AppState:
     """Função de conveniência para obter o estado."""
