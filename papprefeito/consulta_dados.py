@@ -235,6 +235,135 @@ def exibir_valores_reais_municipio(dados):
     else:
         st.warning("Nenhum dado de equipe encontrado para cálculo dos valores")
 
+def criar_grafico_piramide_mensal(dados):
+    """Cria o gráfico de pirâmide deitado com projeções mensais de ganho e perda"""
+    if not dados or 'pagamentos' not in dados:
+        return None
+    
+    pagamentos = dados['pagamentos'][0]  # Primeiro registro de pagamentos
+    
+    # Extrair valor atual real do município
+    valor_atual = 0
+    valor_atual += pagamentos.get('vlQualidadeEsf', 0)
+    valor_atual += pagamentos.get('vlPagamentoEmultiQualidade', 0) 
+    valor_atual += pagamentos.get('vlPagamentoEsb40hQualidade', 0)
+    
+    if valor_atual == 0:
+        return None
+    
+    # Extrair classificação atual
+    classificacao_atual = pagamentos.get('dsClassificacaoQualidadeEsfEap', 'Bom')
+    if not classificacao_atual:
+        classificacao_atual = 'Bom'
+    
+    # Calcular cenários de ganho/perda (25% para cima e para baixo)
+    percentual_variacao = 0.25
+    valor_otimo = valor_atual * (1 + percentual_variacao)
+    valor_regular = valor_atual * (1 - percentual_variacao)
+    
+    # Calcular ganho e perda mensais
+    ganho_mensal = valor_otimo - valor_atual
+    perda_mensal = valor_atual - valor_regular
+    
+    # Preparar dados para os 12 meses
+    meses = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 
+             'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez']
+    
+    ganhos_acumulados = [ganho_mensal * (i+1) for i in range(12)]
+    perdas_acumuladas = [-perda_mensal * (i+1) for i in range(12)]
+    
+    # Criar figura
+    fig = go.Figure()
+    
+    # Linha base (valor atual)
+    fig.add_hline(
+        y=0, 
+        line_dash="dash", 
+        line_color="#FFC300", 
+        line_width=3,
+        annotation_text=f"Valor Base: {format_currency(valor_atual)} ({classificacao_atual})",
+        annotation_position="right"
+    )
+    
+    # Colunas verdes (ganhos)
+    fig.add_trace(go.Bar(
+        name='Ganhos Acumulados',
+        x=meses,
+        y=ganhos_acumulados,
+        marker_color='#1E8449',
+        hovertemplate='<b>%{x}</b><br>Ganho: %{customdata}<extra></extra>',
+        customdata=[format_currency(g) for g in ganhos_acumulados]
+    ))
+    
+    # Colunas vermelhas (perdas)  
+    fig.add_trace(go.Bar(
+        name='Perdas Acumuladas',
+        x=meses,
+        y=perdas_acumuladas,
+        marker_color='#C0392B',
+        hovertemplate='<b>%{x}</b><br>Perda: %{customdata}<extra></extra>',
+        customdata=[format_currency(abs(p)) for p in perdas_acumuladas]
+    ))
+    
+    # Configurações de layout
+    fig.update_layout(
+        title=dict(
+            text=f"<b>Pirâmide de Projeção Mensal - {classificacao_atual} → Ótimo/Regular</b>",
+            x=0.5,
+            font=dict(size=20)
+        ),
+        template='plotly_white',
+        height=500,
+        barmode='relative',
+        xaxis=dict(
+            title=dict(text="<b>Meses do Ano</b>", font=dict(size=14)),
+            tickfont=dict(size=12),
+        ),
+        yaxis=dict(
+            title=dict(text="<b>Valor Acumulado (R$)</b>", font=dict(size=14)),
+            tickfont=dict(size=12),
+            tickformat=",",
+            zeroline=True,
+            zerolinecolor="#FFC300",
+            zerolinewidth=3
+        ),
+        legend=dict(
+            orientation="h",
+            yanchor="bottom",
+            y=1.02,
+            xanchor="right",
+            x=1
+        ),
+        annotations=[
+            # Anotação do ganho anual
+            dict(
+                x=11, y=ganhos_acumulados[-1],
+                text=f"<b>Ganho Anual Total:<br>{format_currency(ganhos_acumulados[-1])}</b>",
+                showarrow=True,
+                arrowhead=2,
+                arrowsize=1,
+                arrowcolor='#1E8449',
+                bgcolor='#1E8449',
+                bordercolor='#1E8449',
+                font=dict(color='white', size=12)
+            ),
+            # Anotação da perda anual
+            dict(
+                x=11, y=perdas_acumuladas[-1],
+                text=f"<b>Perda Anual Total:<br>{format_currency(abs(perdas_acumuladas[-1]))}</b>",
+                showarrow=True,
+                arrowhead=2,
+                arrowsize=1,
+                arrowcolor='#C0392B',
+                bgcolor='#C0392B',
+                bordercolor='#C0392B',
+                font=dict(color='white', size=12)
+            )
+        ]
+    )
+    
+    return fig
+
 def criar_grafico_decisao_estrategica(dados):
     """Cria o gráfico de decisão estratégica para impressão baseado nos dados reais do município"""
     if not dados or 'pagamentos' not in dados:
@@ -560,6 +689,31 @@ def main():
                     st.error(f"Erro ao importar função de classificação: {e}")
                 except Exception as e:
                     st.error(f"Erro ao gerar tabela por classificação: {e}")
+            
+            # Exibir Gráfico de Pirâmide Mensal
+            st.markdown("---")
+            st.header(f"📊 Gráfico de Pirâmide Mensal - {municipio_selecionado}, {uf_selecionada}")
+            st.write("**Projeção mensal acumulada de ganhos e perdas baseada na classificação atual**")
+            
+            fig_piramide = criar_grafico_piramide_mensal(dados)
+            if fig_piramide:
+                st.plotly_chart(fig_piramide, use_container_width=True, config={'displayModeBar': True})
+                
+                # Informações complementares sobre o gráfico
+                with st.expander("ℹ️ Como interpretar este gráfico"):
+                    st.write("""
+                    **🔍 Explicação do Gráfico:**
+                    - **Linha amarela central**: Valor atual da classificação do município
+                    - **Colunas verdes (acima)**: Ganhos acumulados se alcançar classificação "Ótimo"
+                    - **Colunas vermelhas (abaixo)**: Perdas acumuladas se regredir para "Regular"
+                    - **Timeline**: Projeção mensal ao longo de 12 meses
+                    
+                    **💡 Exemplo de uso:**
+                    Se o município melhorar sua classificação de "Bom" para "Ótimo", em 12 meses 
+                    teria acumulado o valor mostrado na coluna verde de dezembro.
+                    """)
+            else:
+                st.warning("⚠️ Não foi possível gerar o gráfico de pirâmide. Dados de qualidade insuficientes.")
             
             # Exibir Gráfico de Decisão Estratégica no final
             st.markdown("---")
