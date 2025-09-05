@@ -3,6 +3,7 @@ import streamlit as st
 import pandas as pd
 import json
 import os
+import plotly.graph_objects as go
 from pyUFbr.baseuf import ufbr
 from utils import consultar_api, format_currency
 
@@ -234,6 +235,189 @@ def exibir_valores_reais_municipio(dados):
     else:
         st.warning("Nenhum dado de equipe encontrado para cálculo dos valores")
 
+def criar_grafico_decisao_estrategica(dados):
+    """Cria o gráfico de decisão estratégica para impressão baseado nos dados reais do município"""
+    if not dados or 'pagamentos' not in dados:
+        return None
+    
+    pagamentos = dados['pagamentos'][0]  # Primeiro registro de pagamentos
+    
+    # Extrair valor atual real do município
+    valor_atual = 0
+    valor_atual += pagamentos.get('vlQualidadeEsf', 0)
+    valor_atual += pagamentos.get('vlPagamentoEmultiQualidade', 0) 
+    valor_atual += pagamentos.get('vlPagamentoEsb40hQualidade', 0)
+    
+    if valor_atual == 0:
+        return None
+    
+    # Extrair classificação atual
+    classificacao_atual = pagamentos.get('dsClassificacaoQualidadeEsfEap', 'Bom')
+    if not classificacao_atual:
+        classificacao_atual = 'Bom'
+    
+    # Calcular cenários de ganho/perda (25% para cima e para baixo)
+    percentual_variacao = 0.25
+    valor_otimo = valor_atual * (1 + percentual_variacao)
+    valor_regular = valor_atual * (1 - percentual_variacao)
+    
+    valores_financeiros = {
+        'Ótimo': valor_otimo,
+        'Atual': valor_atual,
+        'Regular': valor_regular
+    }
+    
+    mapeamento_y = {
+        'Regular': 1,
+        'Atual': 2,
+        'Ótimo': 3
+    }
+    
+    # Criar figura
+    fig = go.Figure()
+    
+    # Linha Verde - Cenário Ótimo
+    fig.add_trace(go.Scatter(
+        x=['Situação Atual', 'Projeção 2026'],
+        y=[mapeamento_y['Atual'], mapeamento_y['Ótimo']],
+        mode='lines',
+        line=dict(color='#1E8449', width=4),
+        showlegend=False
+    ))
+    
+    # Linha Vermelha - Cenário Regular
+    fig.add_trace(go.Scatter(
+        x=['Situação Atual', 'Projeção 2026'],
+        y=[mapeamento_y['Atual'], mapeamento_y['Regular']],
+        mode='lines',
+        line=dict(color='#C0392B', width=4),
+        showlegend=False
+    ))
+    
+    # Ponto de partida - Situação Atual
+    fig.add_trace(go.Scatter(
+        x=['Situação Atual'],
+        y=[mapeamento_y['Atual']],
+        mode='markers',
+        marker=dict(
+            size=25,
+            color='#FFC300',
+            line=dict(color='black', width=2)
+        ),
+        showlegend=False
+    ))
+    
+    # Pontos finais - Cenários
+    fig.add_trace(go.Scatter(
+        x=['Projeção 2026', 'Projeção 2026'],
+        y=[mapeamento_y['Ótimo'], mapeamento_y['Regular']],
+        mode='markers',
+        marker=dict(
+            size=20,
+            color=['#1E8449', '#C0392B'],
+            line=dict(color='black', width=2)
+        ),
+        showlegend=False
+    ))
+    
+    # Calcular ganho/perda
+    ganho = valor_otimo - valor_atual
+    perda = valor_atual - valor_regular
+    
+    # Seta Verde - Cenário Ótimo
+    fig.add_annotation(
+        x='Situação Atual',
+        y=mapeamento_y['Atual'],
+        ax='Projeção 2026',
+        ay=mapeamento_y['Ótimo'],
+        arrowhead=2,
+        arrowsize=1.5,
+        arrowwidth=4,
+        arrowcolor='#1E8449'
+    )
+    
+    # Seta Vermelha - Cenário Regular
+    fig.add_annotation(
+        x='Situação Atual',
+        y=mapeamento_y['Atual'],
+        ax='Projeção 2026',
+        ay=mapeamento_y['Regular'],
+        arrowhead=2,
+        arrowsize=1.5,
+        arrowwidth=4,
+        arrowcolor='#C0392B'
+    )
+    
+    # Anotação do ponto de partida
+    fig.add_annotation(
+        x='Situação Atual',
+        y=mapeamento_y['Atual'] + 0.15,
+        text=f"<b>{classificacao_atual}</b><br>{format_currency(valor_atual)}",
+        showarrow=False,
+        font=dict(size=14, color='black'),
+        bgcolor='white',
+        bordercolor='black',
+        borderwidth=1
+    )
+    
+    # Anotação cenário ótimo
+    fig.add_annotation(
+        x='Projeção 2026',
+        y=mapeamento_y['Ótimo'],
+        text=f"<b>Cenário Ótimo</b><br><b>{format_currency(valor_otimo)}</b><br><b style='color:#1E8449'>+{format_currency(ganho)} (+25%)</b>",
+        showarrow=False,
+        font=dict(size=16, color='white'),
+        bgcolor='#1E8449',
+        bordercolor='#1E8449',
+        borderwidth=1,
+        xshift=100
+    )
+    
+    # Anotação cenário regular
+    fig.add_annotation(
+        x='Projeção 2026',
+        y=mapeamento_y['Regular'],
+        text=f"<b>Cenário Regular</b><br><b>{format_currency(valor_regular)}</b><br><b style='color:#C0392B'>-{format_currency(perda)} (-25%)</b>",
+        showarrow=False,
+        font=dict(size=16, color='white'),
+        bgcolor='#C0392B',
+        bordercolor='#C0392B',
+        borderwidth=1,
+        xshift=100
+    )
+    
+    # Configurações de layout
+    fig.update_layout(
+        title=dict(
+            text="<b>Encruzilhada Financeira: O Futuro do Município em 2026</b>",
+            x=0.5,
+            font=dict(size=24)
+        ),
+        template='plotly_white',
+        showlegend=False,
+        height=600,
+        margin=dict(r=250, l=50, t=80, b=50),
+        xaxis=dict(
+            title=dict(text="", font=dict(size=16, color='black')),
+            tickfont=dict(size=14, color='black'),
+            showline=False,
+            tickmode='array',
+            tickvals=['Situação Atual', 'Projeção 2026'],
+            ticktext=['<b>Situação Atual</b>', '<b>Projeção 2026</b>']
+        ),
+        yaxis=dict(
+            title=dict(text="", font=dict(size=16, color='black')),
+            tickfont=dict(size=14, color='black'),
+            showline=False,
+            tickmode='array',
+            tickvals=[1, 2, 3],
+            ticktext=['<b>Regular (-25%)</b>', f'<b>{classificacao_atual} (Atual)</b>', '<b>Ótimo (+25%)</b>'],
+            range=[0.5, 3.5]
+        )
+    )
+    
+    return fig
+
 def exibir_tabelas(titulo, dados, colunas):
     """Exibe uma tabela formatada com os dados."""
     st.subheader(titulo)
@@ -291,8 +475,9 @@ def exibir_tabelas(titulo, dados, colunas):
         st.warning("Nenhum dado encontrado.")
 
 def main():
-    
-    st.title("🏥 Sistema de Monitoramento de Financiamento da Saúde - papprefeito")
+    st.set_page_config(page_title="Sistema de Monitoramento - Saúde")
+    st.title("📊 Sistema de Monitoramento de Financiamento da Saúde")
+    st.header("🔍 Consulta de Dados Municipais")
     
     # Carregar configurações
     config_data = carregar_config()
@@ -362,61 +547,7 @@ def main():
                 "dsClassificacaoQualidadeEsfEap", "qtEsfCredenciado", "qtEsfHomologado"
             ]
 
-            # Focar apenas em vínculo/acompanhamento e qualidade
             if pagamentos:
-                # Exibir tabela de classificação de vínculo e acompanhamento para eSF/eAP
-                st.subheader("🎯 Classificação de Vínculo e Acompanhamento - eSF/eAP")
-                try:
-                    from utils import extrair_dados_vinculo_acompanhamento, criar_tabela_vinculo_acompanhamento
-                    
-                    dados_vinculo = extrair_dados_vinculo_acompanhamento(dados)
-                    
-                    # Verificar se há dados para exibir
-                    tem_dados = dados_vinculo['esf']['tem_equipes'] or dados_vinculo['eap']['tem_equipes']
-                    
-                    if tem_dados:
-                        tabela_vinculo = criar_tabela_vinculo_acompanhamento(dados_vinculo)
-                        st.dataframe(tabela_vinculo, use_container_width=True)
-                        
-                        # Mostrar informações resumidas
-                        total_equipes = 0
-                        total_vinculo = 0
-                        total_qualidade = 0
-                        
-                        if dados_vinculo['esf']['tem_equipes']:
-                            total_equipes += dados_vinculo['esf']['quantidade_equipes']
-                            total_vinculo += dados_vinculo['esf']['valor_vinculo']
-                            total_qualidade += dados_vinculo['esf']['valor_qualidade']
-                            
-                        if dados_vinculo['eap']['tem_equipes']:
-                            total_equipes += dados_vinculo['eap']['quantidade_equipes']
-                            total_vinculo += dados_vinculo['eap']['valor_vinculo']
-                            total_qualidade += dados_vinculo['eap']['valor_qualidade']
-                        
-                        col1, col2, col3, col4 = st.columns(4)
-                        with col1:
-                            st.metric("Total de Equipes", total_equipes)
-                        with col2:
-                            st.metric("Total Vínculo", format_currency(total_vinculo))
-                        with col3:
-                            st.metric("Total Qualidade", format_currency(total_qualidade))
-                        with col4:
-                            st.metric("Total Geral", format_currency(total_vinculo + total_qualidade))
-                            
-                    else:
-                        st.info("ℹ️ Nenhuma equipe eSF ou eAP encontrada para este município.")
-                        
-                except ImportError as e:
-                    st.error(f"Erro ao importar funções necessárias: {e}")
-                except Exception as e:
-                    st.error(f"Erro ao gerar tabela de vínculo e acompanhamento: {e}")
-                
-                # Exibir valores reais de qualidade por equipe
-                st.markdown("---")
-                exibir_valores_reais_municipio(dados)
-                
-                # Nova tabela: Valor Total por Classificação (no final da página)
-                st.markdown("---")
                 st.subheader("📊 Valor Total por Classificação - Cenários Completos")
                 try:
                     from utils import criar_tabela_total_por_classificacao
@@ -424,29 +555,22 @@ def main():
                     tabela_classificacao = criar_tabela_total_por_classificacao(dados)
                     st.dataframe(tabela_classificacao, use_container_width=True)
                     
-                    # Destacar a classificação atual
-                    primeiro_pagamento = pagamentos[0]
-                    classificacao_atual = primeiro_pagamento.get('dsClassificacaoQualidadeEsfEap', 'Não informado')
-                    classificacao_emulti = primeiro_pagamento.get('dsClassificacaoQualidadeEmulti', 'Não informado')
-                    
-                    col1, col2 = st.columns(2)
-                    with col1:
-                        if classificacao_atual != 'Não informado':
-                            st.info(f"💡 **Classificação eSF/eAP/eSB**: {classificacao_atual}")
-                    with col2:
-                        if classificacao_emulti != 'Não informado':
-                            st.info(f"💡 **Classificação eMulti**: {classificacao_emulti}")
                             
                 except ImportError as e:
                     st.error(f"Erro ao importar função de classificação: {e}")
                 except Exception as e:
                     st.error(f"Erro ao gerar tabela por classificação: {e}")
-                
-                # Salvar informações importantes na sessão (sem exibir)
-                primeiro_pagamento = pagamentos[0]
-                st.session_state['ied'] = primeiro_pagamento.get('dsFaixaIndiceEquidadeEsfEap', '')
-                st.session_state['classificacao'] = primeiro_pagamento.get('dsClassificacaoQualidadeEsfEap', 'Bom')
-                st.session_state['vinculo'] = primeiro_pagamento.get('dsClassificacaoVinculoEsfEap', 'Bom')
+            
+            # Exibir Gráfico de Decisão Estratégica no final
+            st.markdown("---")
+            st.header(f"📈 Gráfico de Decisão Estratégica - {municipio_selecionado}, {uf_selecionada}")
+            st.write("**Visualização otimizada para impressão - Cenários de ganho/perda baseados nos valores reais**")
+            
+            fig_decisao = criar_grafico_decisao_estrategica(dados)
+            if fig_decisao:
+                st.plotly_chart(fig_decisao, use_container_width=True, config={'displayModeBar': True})
+            else:
+                st.warning("⚠️ Não foi possível gerar o gráfico. Dados de qualidade insuficientes.")
             
         else:
             st.error("❌ Nenhum dado encontrado para os parâmetros informados.")
