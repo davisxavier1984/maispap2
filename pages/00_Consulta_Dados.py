@@ -159,6 +159,53 @@ def main():
                 st.session_state['ied'] = primeiro_pagamento.get('dsFaixaIndiceEquidadeEsfEap', '')
                 st.session_state['classificacao'] = primeiro_pagamento.get('dsClassificacaoQualidadeEsfEap', 'Bom')
                 st.session_state['vinculo'] = primeiro_pagamento.get('dsClassificacaoVinculoEsfEap', 'Bom')
+                
+                # Exibir tabela de classificação de vínculo e acompanhamento para eSF/eAP
+                st.subheader("🎯 Classificação de Vínculo e Acompanhamento - eSF/eAP")
+                try:
+                    from utils.data import extrair_dados_vinculo_acompanhamento, criar_tabela_vinculo_acompanhamento
+                    
+                    dados_vinculo = extrair_dados_vinculo_acompanhamento(dados)
+                    
+                    # Verificar se há dados para exibir
+                    tem_dados = dados_vinculo['esf']['tem_equipes'] or dados_vinculo['eap']['tem_equipes']
+                    
+                    if tem_dados:
+                        tabela_vinculo = criar_tabela_vinculo_acompanhamento(dados_vinculo)
+                        st.dataframe(tabela_vinculo, use_container_width=True)
+                        
+                        # Mostrar informações resumidas
+                        total_equipes = 0
+                        total_vinculo = 0
+                        total_qualidade = 0
+                        
+                        if dados_vinculo['esf']['tem_equipes']:
+                            total_equipes += dados_vinculo['esf']['quantidade_equipes']
+                            total_vinculo += dados_vinculo['esf']['valor_vinculo']
+                            total_qualidade += dados_vinculo['esf']['valor_qualidade']
+                            
+                        if dados_vinculo['eap']['tem_equipes']:
+                            total_equipes += dados_vinculo['eap']['quantidade_equipes']
+                            total_vinculo += dados_vinculo['eap']['valor_vinculo']
+                            total_qualidade += dados_vinculo['eap']['valor_qualidade']
+                        
+                        from utils import format_currency
+                        col1, col2, col3, col4 = st.columns(4)
+                        with col1:
+                            st.metric("Total de Equipes", total_equipes)
+                        with col2:
+                            st.metric("Total Vínculo", format_currency(total_vinculo))
+                        with col3:
+                            st.metric("Total Qualidade", format_currency(total_qualidade))
+                        with col4:
+                            st.metric("Total Geral", format_currency(total_vinculo + total_qualidade))
+                    else:
+                        st.info("ℹ️ Nenhuma equipe eSF ou eAP encontrada para este município.")
+                        
+                except ImportError as e:
+                    st.error(f"Erro ao importar funções necessárias: {e}")
+                except Exception as e:
+                    st.error(f"Erro ao gerar tabela de vínculo e acompanhamento: {e}")
             
         else:
             st.error("❌ Nenhum dado encontrado para os parâmetros informados.")

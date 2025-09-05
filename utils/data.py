@@ -145,3 +145,111 @@ def extrair_informacoes_municipio(dados: Dict[str, Any]) -> Dict[str, Any]:
         st.warning(f"⚠️ Erro ao extrair informações do município: {e}")
     
     return info
+
+def extrair_dados_vinculo_acompanhamento(dados: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Extrai dados de classificação e valores de vínculo e acompanhamento para eSF e eAP.
+    
+    Args:
+        dados: Dados completos da API
+        
+    Returns:
+        Dict: Dados estruturados de vínculo e acompanhamento
+    """
+    resultado = {
+        'esf': {
+            'tem_equipes': False,
+            'classificacao_vinculo': None,
+            'classificacao_qualidade': None, 
+            'valor_vinculo': 0,
+            'valor_qualidade': 0,
+            'quantidade_equipes': 0
+        },
+        'eap': {
+            'tem_equipes': False,
+            'classificacao_vinculo': None,
+            'classificacao_qualidade': None,
+            'valor_vinculo': 0,
+            'valor_qualidade': 0,
+            'quantidade_equipes': 0
+        }
+    }
+    
+    try:
+        pagamentos = dados.get('pagamentos', [])
+        if not pagamentos:
+            return resultado
+            
+        primeiro_pagamento = pagamentos[0]
+        
+        # Dados eSF
+        qt_esf = primeiro_pagamento.get('qtEsfCredenciado', 0)
+        if qt_esf > 0:
+            resultado['esf'].update({
+                'tem_equipes': True,
+                'classificacao_vinculo': primeiro_pagamento.get('dsClassificacaoVinculoEsfEap'),
+                'classificacao_qualidade': primeiro_pagamento.get('dsClassificacaoQualidadeEsfEap'),
+                'valor_vinculo': primeiro_pagamento.get('vlVinculoEsf', 0),
+                'valor_qualidade': primeiro_pagamento.get('vlQualidadeEsf', 0),
+                'quantidade_equipes': qt_esf
+            })
+        
+        # Dados eAP  
+        qt_eap = primeiro_pagamento.get('qtEapCredenciadas', 0)
+        if qt_eap > 0:
+            resultado['eap'].update({
+                'tem_equipes': True,
+                'classificacao_vinculo': primeiro_pagamento.get('dsClassificacaoVinculoEsfEap'), # Usa a mesma classificação
+                'classificacao_qualidade': primeiro_pagamento.get('dsClassificacaoQualidadeEsfEap'), # Usa a mesma classificação
+                'valor_vinculo': primeiro_pagamento.get('vlVinculoEap', 0),
+                'valor_qualidade': primeiro_pagamento.get('vlQualidadeEap', 0),
+                'quantidade_equipes': qt_eap
+            })
+            
+    except (KeyError, IndexError, TypeError) as e:
+        st.warning(f"⚠️ Erro ao extrair dados de vínculo e acompanhamento: {e}")
+    
+    return resultado
+
+def criar_tabela_vinculo_acompanhamento(dados_vinculo: Dict[str, Any]) -> pd.DataFrame:
+    """
+    Cria DataFrame formatado com dados de vínculo e acompanhamento para eSF e eAP.
+    
+    Args:
+        dados_vinculo: Dados estruturados de vínculo e acompanhamento
+        
+    Returns:
+        pd.DataFrame: Tabela formatada
+    """
+    from .formatting import format_currency
+    import pandas as pd
+    
+    linhas = []
+    
+    # Processar eSF
+    if dados_vinculo['esf']['tem_equipes']:
+        esf_data = dados_vinculo['esf']
+        linhas.append({
+            'Tipo de Equipe': 'eSF - Equipes de Saúde da Família',
+            'Qtd. Equipes': esf_data['quantidade_equipes'],
+            'Classificação Vínculo': esf_data['classificacao_vinculo'] or 'Não informado',
+            'Valor Vínculo (R$)': format_currency(esf_data['valor_vinculo']),
+            'Classificação Qualidade': esf_data['classificacao_qualidade'] or 'Não informado',
+            'Valor Qualidade (R$)': format_currency(esf_data['valor_qualidade']),
+            'Total (R$)': format_currency(esf_data['valor_vinculo'] + esf_data['valor_qualidade'])
+        })
+    
+    # Processar eAP
+    if dados_vinculo['eap']['tem_equipes']:
+        eap_data = dados_vinculo['eap']
+        linhas.append({
+            'Tipo de Equipe': 'eAP - Equipes de Atenção Primária',
+            'Qtd. Equipes': eap_data['quantidade_equipes'],
+            'Classificação Vínculo': eap_data['classificacao_vinculo'] or 'Não informado',
+            'Valor Vínculo (R$)': format_currency(eap_data['valor_vinculo']),
+            'Classificação Qualidade': eap_data['classificacao_qualidade'] or 'Não informado',
+            'Valor Qualidade (R$)': format_currency(eap_data['valor_qualidade']),
+            'Total (R$)': format_currency(eap_data['valor_vinculo'] + eap_data['valor_qualidade'])
+        })
+    
+    return pd.DataFrame(linhas)
