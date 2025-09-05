@@ -362,59 +362,95 @@ def main():
                 "dsClassificacaoQualidadeEsfEap", "qtEsfCredenciado", "qtEsfHomologado"
             ]
 
-            if resumos:
-                exibir_tabelas("📋 Resumos dos Planos Orçamentários", resumos, colunas_resumos)
-            
+            # Focar apenas em vínculo/acompanhamento e qualidade
             if pagamentos:
-                exibir_tabelas("💰 Dados de Pagamentos", pagamentos, colunas_pagamentos)
+                # Exibir tabela de classificação de vínculo e acompanhamento para eSF/eAP
+                st.subheader("🎯 Classificação de Vínculo e Acompanhamento - eSF/eAP")
+                try:
+                    from utils import extrair_dados_vinculo_acompanhamento, criar_tabela_vinculo_acompanhamento
+                    
+                    dados_vinculo = extrair_dados_vinculo_acompanhamento(dados)
+                    
+                    # Verificar se há dados para exibir
+                    tem_dados = dados_vinculo['esf']['tem_equipes'] or dados_vinculo['eap']['tem_equipes']
+                    
+                    if tem_dados:
+                        tabela_vinculo = criar_tabela_vinculo_acompanhamento(dados_vinculo)
+                        st.dataframe(tabela_vinculo, use_container_width=True)
+                        
+                        # Mostrar informações resumidas
+                        total_equipes = 0
+                        total_vinculo = 0
+                        total_qualidade = 0
+                        
+                        if dados_vinculo['esf']['tem_equipes']:
+                            total_equipes += dados_vinculo['esf']['quantidade_equipes']
+                            total_vinculo += dados_vinculo['esf']['valor_vinculo']
+                            total_qualidade += dados_vinculo['esf']['valor_qualidade']
+                            
+                        if dados_vinculo['eap']['tem_equipes']:
+                            total_equipes += dados_vinculo['eap']['quantidade_equipes']
+                            total_vinculo += dados_vinculo['eap']['valor_vinculo']
+                            total_qualidade += dados_vinculo['eap']['valor_qualidade']
+                        
+                        col1, col2, col3, col4 = st.columns(4)
+                        with col1:
+                            st.metric("Total de Equipes", total_equipes)
+                        with col2:
+                            st.metric("Total Vínculo", format_currency(total_vinculo))
+                        with col3:
+                            st.metric("Total Qualidade", format_currency(total_qualidade))
+                        with col4:
+                            st.metric("Total Geral", format_currency(total_vinculo + total_qualidade))
+                            
+                    else:
+                        st.info("ℹ️ Nenhuma equipe eSF ou eAP encontrada para este município.")
+                        
+                except ImportError as e:
+                    st.error(f"Erro ao importar funções necessárias: {e}")
+                except Exception as e:
+                    st.error(f"Erro ao gerar tabela de vínculo e acompanhamento: {e}")
                 
                 # Exibir valores reais de qualidade por equipe
                 st.markdown("---")
                 exibir_valores_reais_municipio(dados)
                 
-            # Exibir informações importantes extraídas
-            if pagamentos:
-                st.subheader("ℹ️ Informações Extraídas")
+                # Nova tabela: Valor Total por Classificação (no final da página)
+                st.markdown("---")
+                st.subheader("📊 Valor Total por Classificação - Cenários Completos")
+                try:
+                    from utils import criar_tabela_total_por_classificacao
+                    
+                    tabela_classificacao = criar_tabela_total_por_classificacao(dados)
+                    st.dataframe(tabela_classificacao, use_container_width=True)
+                    
+                    # Destacar a classificação atual
+                    primeiro_pagamento = pagamentos[0]
+                    classificacao_atual = primeiro_pagamento.get('dsClassificacaoQualidadeEsfEap', 'Não informado')
+                    classificacao_emulti = primeiro_pagamento.get('dsClassificacaoQualidadeEmulti', 'Não informado')
+                    
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        if classificacao_atual != 'Não informado':
+                            st.info(f"💡 **Classificação eSF/eAP/eSB**: {classificacao_atual}")
+                    with col2:
+                        if classificacao_emulti != 'Não informado':
+                            st.info(f"💡 **Classificação eMulti**: {classificacao_emulti}")
+                            
+                except ImportError as e:
+                    st.error(f"Erro ao importar função de classificação: {e}")
+                except Exception as e:
+                    st.error(f"Erro ao gerar tabela por classificação: {e}")
+                
+                # Salvar informações importantes na sessão (sem exibir)
                 primeiro_pagamento = pagamentos[0]
-                
-                col1, col2, col3 = st.columns(3)
-                with col1:
-                    st.metric("IED", primeiro_pagamento.get('dsFaixaIndiceEquidadeEsfEap', 'N/A'))
-                with col2:
-                    st.metric("Classificação Vínculo", primeiro_pagamento.get('dsClassificacaoVinculoEsfEap', 'N/A'))
-                with col3:
-                    st.metric("Classificação Qualidade", primeiro_pagamento.get('dsClassificacaoQualidadeEsfEap', 'N/A'))
-                
-                # Salvar informações importantes na sessão
                 st.session_state['ied'] = primeiro_pagamento.get('dsFaixaIndiceEquidadeEsfEap', '')
                 st.session_state['classificacao'] = primeiro_pagamento.get('dsClassificacaoQualidadeEsfEap', 'Bom')
                 st.session_state['vinculo'] = primeiro_pagamento.get('dsClassificacaoVinculoEsfEap', 'Bom')
-                
-                # Calcular e exibir valores específicos para o município
-                if config_data and 'quality_values' in config_data:
-                    st.markdown("---")
-                    calcular_valores_municipio(
-                        config_data['quality_values'],
-                        st.session_state['classificacao'],
-                        municipio_selecionado,
-                        uf_selecionada
-                    )
             
         else:
             st.error("❌ Nenhum dado encontrado para os parâmetros informados.")
             st.info("💡 Verifique se o código IBGE e a competência estão corretos.")
-    
-    # Exibir valores de qualidade se já tiver dados de consulta anterior na sessão
-    elif ('classificacao' in st.session_state and 'municipio_selecionado' in st.session_state and 
-          'uf_selecionada' in st.session_state and config_data and 'quality_values' in config_data):
-        st.markdown("---")
-        st.info("📋 Exibindo valores para a última consulta realizada")
-        calcular_valores_municipio(
-            config_data['quality_values'],
-            st.session_state['classificacao'],
-            st.session_state['municipio_selecionado'],
-            st.session_state['uf_selecionada']
-        )
 
 if __name__ == "__main__":
     main()
